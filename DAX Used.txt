@@ -1,0 +1,215 @@
+CORE MEASURES :
+	
+1. Total_Revenue = SUM('gold Fact_OrderItems'[Price]) 
+
+2. Total_Freight = SUM('gold Fact_OrderItems'[FreightValue])
+
+3. Items_Sold = COUNTROWS('gold Fact_OrderItems') 
+
+4. Total_Orders = DISTINCTCOUNT('gold Fact_OrderItems'[OrderKey])
+
+5. Avg_Order_Value = DIVIDE([Total_Revenue], [Total_Orders]) 
+
+6. Avg_Item_Price = DIVIDE([Total_Revenue], [Items_Sold]) 
+
+7. Freight% = DIVIDE([Total_Freight], [Total_Revenue]) 
+
+8. Unique_Sellers = DISTINCTCOUNT('gold Fact_OrderItems'[SellerKey]) 
+
+9. Unique_Products_Sold = DISTINCTCOUNT('gold Fact_OrderItems'[ProductKey]) 
+
+
+Time Intelligence :
+
+1. Revenue_LY = CALCULATE([Total_Revenue], SAMEPERIODLASTYEAR('gold dim_DateTable'[FullDate])) 
+
+2. Revenue_YOY_Growth% = DIVIDE([Total_Revenue]- [Revenue_LY], [Revenue_LY])
+
+3. Revenue_Prev_month = CALCULATE([Total_Revenue], DATEADD('gold dim_DateTable'[FullDate],-1,MONTH)) 
+
+4. Revenue_MOM_Growth% = DIVIDE([Total_Revenue] - [Revenue_Prev_month], [Total_Revenue]) 
+
+5. Revenue_YTD = TOTALYTD([Total_Revenue], 'gold dim_DateTable'[FullDate]) 
+
+6. Cumulative_Revenue = CALCULATE([Total_Revenue], FILTER(ALL('gold dim_DateTable'), 'gold dim_DateTable'[FullDate] <= MAX('gold dim_DateTable'[FullDate]))) 
+
+7. Revenue_Rolling_3M = CALCULATE([Total_Revenue], DATESINPERIOD('gold dim_DateTable'[FullDate], max('gold dim_DateTable'[FullDate]), -3, MONTH)) 
+
+
+Delivery Performance :
+
+1. All_Orders = COUNTROWS('gold dim_Orders')
+
+2. Delivered_Orders = CALCULATE(COUNTROWS('gold dim_Orders'), 'gold dim_Orders'[OrderStatus] = "delivered")
+
+3. Cancelled_Orders = CALCULATE(COUNTROWS('gold dim_Orders'), 'gold dim_Orders'[OrderStatus] = "cancelled") 
+
+4. Late_Orders = CALCULATE(COUNTROWS('gold dim_Orders'), 'gold dim_Orders'[IsLate] = 1) 
+
+5. Late_Delivery% = DIVIDE([Late_Orders], [Total_Orders]) 
+
+6. On_Time_Delivery = 1 - [Late_Delivery%] 
+
+7. Avg_Delay_Days = 
+    AVERAGEX(
+        FILTER('gold dim_Orders', 
+            NOT ISBLANK('gold dim_Orders'[DeliveredCarrierDateKey]) &&
+            NOT ISBLANK('gold dim_Orders'[EstimatedDeliveryDateKey])),
+                VAR D = MAXX(
+                    FILTER(ALL('gold dim_DateTable'), 'gold dim_DateTable'[DateKey] = 'gold dim_Orders'[DeliveredCarrierDateKey]), 'gold dim_DateTable'[FullDate] )
+                VAR E = MAXX(
+                    FILTER(('gold dim_DateTable'), 'gold dim_DateTable'[DateKey] = 'gold dim_Orders'[EstimatedDeliveryDateKey]), 'gold dim_DateTable'[FullDate])
+                RETURN 
+                    DATEDIFF(E, D, DAY)
+    )
+                
+8. Avg_Delivery_Days = 
+    AVERAGEX(
+        FILTER('gold dim_Orders',
+            NOT ISBLANK('gold dim_Orders'[PurchaseDateKey]) && 
+            NOT ISBLANK('gold dim_Orders'[DeliveredCustomerDateKey])),
+            VAR P = MAXX(
+                FILTER(ALL('gold dim_DateTable'), 'gold dim_DateTable'[DateKey] = 'gold dim_Orders'[PurchaseDateKey]), 'gold dim_DateTable'[FullDate])
+            VAR D = MAXX(
+                FILTER(ALL('gold dim_DateTable'), 'gold dim_DateTable'[DateKey] = 'gold dim_Orders'[DeliveredCustomerDateKey]), 'gold dim_DateTable'[FullDate])
+            RETURN 
+                DATEDIFF(P, D, DAY)
+    )
+
+9. Orders_Delivered_by_Delivery_Date = 
+    CALCULATE(COUNTROWS('gold dim_Orders'), 
+    USERELATIONSHIP('gold dim_Orders'[DeliveredCustomerDateKey], 'gold dim_DateTable'[DateKey]))
+
+
+
+Reviews :
+
+1. Review_Count = COUNTROWS('gold Fact_Reviews') 
+
+2. Avg_Review_Score = AVERAGE('gold Fact_Reviews'[ReviewScore]) 
+
+3. 5_Star% = DIVIDE(CALCULATE(COUNTROWS('gold Fact_Reviews'), 'gold Fact_Reviews'[ReviewScore] = 5), [Review_Count]) 
+
+4. Negetive_Review = DIVIDE(CALCULATE(COUNTROWS('gold Fact_Reviews'), 'gold Fact_Reviews'[ReviewScore] <= 2), [Review_Count]) 
+
+5. Comment% = DIVIDE(CALCULATE(COUNTROWS('gold Fact_Reviews'), 'gold Fact_Reviews'[hasComment] = TRUE() ), [Review_Count]) 
+
+6. Average_Review_Score_LateOrders = CALCULATE(AVERAGE('gold Fact_Reviews'[ReviewScore]), 'gold dim_Orders'[IsLate] = 1) 
+
+OR
+
+Avg_Review_Score_LateOrders2 = CALCULATE([Avg_Review_Score], 'gold dim_Orders'[IsLate] = 1)
+
+7. Avg_Review_Score_OnTime = CALCULATE([Avg_Review_Score], 'gold dim_Orders'[IsLate] = 0) 
+
+8. Review_Score_Gap_OnTime_Vs_Late = [Avg_Review_Score_OnTime] - [Average_Review_Score_LateOrders] 
+
+
+Customers:
+
+1. Unique_Customer_Count = COUNTROWS(SUMMARIZE('gold dim_Orders', 'gold dim_Customers'[CustomerUniqueID]))
+
+2. Repeat_Customers = 
+            COUNTROWS(
+                FILTER(
+                    ADDCOLUMNS(
+                        SUMMARIZE('gold dim_Orders', 'gold dim_Customers'[CustomerUniqueID]),
+                        "@Orders", CALCULATE(COUNTROWS('gold dim_Orders'))),
+                    [@Orders] > 1)
+            )
+
+3. Repeat_% = DIVIDE([Repeat_Customers], [Unique_Customer_Count])
+
+4. One_Time_Customers = [Unique_Customer_Count] - [Repeat_Customers] 
+
+5. Order_Per_Customer = DIVIDE([All_Orders], [Unique_Customer_Count]) 
+
+6. Revenue_Per_Customer = DIVIDE([Total_Revenue], [Unique_Customer_Count])
+
+
+Sellers and Categories
+
+1. Avg_Seller_Review_Score = CALCULATE([Avg_Review_Score], CROSSFILTER('gold dim_Orders'[OrderKey], 'gold Fact_OrderItems'[OrderKey], Both)) 
+
+2. Seller_Avg_Delivery_Delays = CALCULATE([Avg_Delay_Days], CROSSFILTER('gold dim_Orders'[OrderKey],'gold Fact_OrderItems'[OrderKey], Both)) 
+
+3. Seller_Late_Delivery% = CALCULATE([Late_Delivery%], CROSSFILTER('gold dim_Orders'[OrderKey], 'gold Fact_OrderItems'[OrderKey], Both)) 
+
+4. Sellers_Revenue_Rank = RANKX(ALLSELECTED('gold dim_Sellers'[SellerID]), [Total_Revenue], , DESC, Dense)
+
+5. Category_Revenue_Share = DIVIDE([Total_Revenue], CALCULATE([Total_Revenue], ALLSELECTED('gold dim_Products'[CategoryName_eng]))) 
+
+6. Category_Revenue_Rank = RANKX(ALLSELECTED('gold dim_Products'[CategoryName_eng]), [Total_Revenue], , DESC, Dense)
+
+
+
+Payment :
+
+1. Payments = SUM('gold Fact_Payments'[PaymentValue]) 
+
+2. Avg_Installments  = Avg_Installments = AVERAGE('gold Fact_Payments'[PaymentInstallments])
+
+3. Credit_Card_Share% = DIVIDE(CALCULATE(SUM('gold Fact_Payments'[PaymentValue]), 'gold Fact_Payments'[PaymentType] = "credit card" ), [Payments])
+
+4. Payment_type % = DIVIDE([Payments], CALCULATE([Payments], ALLSELECTED('gold Fact_Payments'[PaymentType])) )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
