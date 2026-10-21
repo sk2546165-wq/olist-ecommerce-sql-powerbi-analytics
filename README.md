@@ -212,11 +212,13 @@ README.md
 
 ## Dashboard
 
-`[Add screenshots here: Executive Overview, Delivery & Reviews, Sellers & Customers]`
+<img width="1796" height="787" alt="PowerBi_Delivery   Review Page" src="https://github.com/user-attachments/assets/bc31653e-ad24-48ab-814c-f875ed73296e" />
+<img width="1787" height="777" alt="PowerBi_Executive Page" src="https://github.com/user-attachments/assets/89bdca5a-b887-4de1-bb1a-4c3506e747a4" />
+<img width="1820" height="782" alt="PowerBi_Sellers   Revenue Page" src="https://github.com/user-attachments/assets/86e36e9f-90b0-4cc2-ad32-6ed7be05f4e0" />
 
 ---
 
 ## Author
 
 **Sumit Kumar Mandal**, Data / MIS Analyst
-`[LinkedIn URL]`
+www.linkedin.com/in/sumit-kumar-mandal-24545220a
